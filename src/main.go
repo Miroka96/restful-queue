@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"restlessqueue/storage"
 )
 
 func main() {
@@ -15,14 +14,14 @@ func main() {
 		panic("Missing configuration parameter")
 	}
 
-	db, err := storage.NewMySQL(host, user, password, database)
+	db, err := NewMySQL(host, user, password, database)
 	if err != nil {
 		panic(err.Error())
 	}
 	defer db.Close()
 
 	server := NewServer(db)
-	err = server.Start(9000)
+	err = server.Start(8080)
 	if err != nil {
 		panic(err.Error())
 	}

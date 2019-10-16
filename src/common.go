@@ -1,4 +1,4 @@
-package storage
+package main
 
 type Data struct {
 	Data string

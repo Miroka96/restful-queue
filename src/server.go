@@ -6,16 +6,15 @@ import (
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"
-	"restlessqueue/storage"
 	"strconv"
 )
 
 type Server struct {
-	db     *storage.MySQLStorage
+	db     *MySQLStorage
 	router *mux.Router
 }
 
-func NewServer(storage *storage.MySQLStorage) *Server {
+func NewServer(storage *MySQLStorage) *Server {
 	router := mux.NewRouter()
 	server := Server{storage, router}
 
@@ -96,7 +95,7 @@ func (server *Server) appendItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body := string(bodybytes)
-	item, err := server.db.Append(id, storage.Data{Data: body})
+	item, err := server.db.Append(id, Data{Data: body})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		panic(err.Error())
