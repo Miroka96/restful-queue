@@ -132,3 +132,23 @@ func (server *Server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (server *Server) getSize(w http.ResponseWriter, r *http.Request) {
+	//TODO
+}
+
+func (server *Server) peek(w http.ResponseWriter, r *http.Request) {
+	//TODO
+}
+
+func (server *Server) poll(w http.ResponseWriter, r *http.Request) {
+	//TODO
+}
+
+func (server *Server) peekRandom(w http.ResponseWriter, r *http.Request) {
+	//TODO
+}
+
+func (server *Server) pollRandom(w http.ResponseWriter, r *http.Request) {
+	//TODO
+}

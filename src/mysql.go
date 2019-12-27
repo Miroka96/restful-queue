@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"log"
 )
 
 const (
@@ -15,17 +16,21 @@ const (
 		"FOREIGN KEY (queue) REFERENCES Queues(id), " +
 		"INDEX item_index (queue, position)" +
 		")"
-	createQueue = "INSERT INTO Queues VALUES (NULL)"
-	appendItem  = "INSERT INTO Items (queue, data) VALUES (?, ?)"
-	deleteItem  = "DELETE FROM Items WHERE position=?"
-	getQueue    = "SELECT position, data FROM Items WHERE queue=? ORDER BY position"
+	createQueue  = "INSERT INTO Queues VALUES (NULL)"
+	appendItem   = "INSERT INTO Items (queue, data) VALUES (?, ?)"
+	deleteItem   = "DELETE FROM Items WHERE position=?"
+	getQueue     = "SELECT position, data FROM Items WHERE queue=? ORDER BY position"
+	getFirstItem = "SELECT position, data FROM Items WHERE queue=? ORDER BY position ASC LIMIT 1"
+	getQueueSize = "SELECT COUNT(*) FROM Items WHERE queue=?"
 )
 
 type MySQLStorage struct {
-	db         *sql.DB
-	appendItem *sql.Stmt
-	deleteItem *sql.Stmt
-	getQueue   *sql.Stmt
+	db           *sql.DB
+	appendItem   *sql.Stmt
+	deleteItem   *sql.Stmt
+	getQueue     *sql.Stmt
+	getFirstItem *sql.Stmt
+	getQueueSize *sql.Stmt
 }
 
 func NewMySQL(host string, username string, password string, database string) (*MySQLStorage, error) {
@@ -33,7 +38,12 @@ func NewMySQL(host string, username string, password string, database string) (*
 	if err != nil {
 		return nil, err
 	}
-	storage := MySQLStorage{db, nil, nil, nil}
+	storage := MySQLStorage{db,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil}
 
 	err = storage.Initialize()
 	if err != nil {
@@ -52,11 +62,23 @@ func NewMySQL(host string, username string, password string, database string) (*
 	}
 	storage.deleteItem = deleteStatement
 
-	getStatement, err := db.Prepare(getQueue)
+	getQueueStatement, err := db.Prepare(getQueue)
 	if err != nil {
 		return nil, err
 	}
-	storage.getQueue = getStatement
+	storage.getQueue = getQueueStatement
+
+	getFirstItemStatement, err := db.Prepare(getFirstItem)
+	if err != nil {
+		return nil, err
+	}
+	storage.getFirstItem = getFirstItemStatement
+
+	getQueueSizeStatement, err := db.Prepare(getQueueSize)
+	if err != nil {
+		return nil, err
+	}
+	storage.getQueueSize = getQueueSizeStatement
 
 	return &storage, nil
 }
@@ -151,4 +173,48 @@ func (storage *MySQLStorage) GetQueue(queue int) (*Queue, error) {
 func (storage *MySQLStorage) Delete(position int) error {
 	_, err := storage.deleteItem.Exec(position)
 	return err
+}
+
+func (storage *MySQLStorage) GetSize(queue int) (int, error) {
+	results, err := storage.getQueueSize.Query(queue)
+	if err != nil {
+		return -1, err
+	}
+
+	results.Next()
+	var size int
+	err = results.Scan(&size)
+	if err != nil {
+		return -1, err
+	}
+
+	if results.Next() {
+		// this condition is expected to be false
+		log.Println("Got unexpected second result for queue size")
+		var next int
+		err = results.Scan(&next)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Println("Value = " + string(next))
+		}
+		// do not investigate any further
+	}
+
+	err = results.Close()
+	if err != nil {
+		return size, err
+	}
+
+	return size, nil
+}
+
+func (storage *MySQLStorage) GetFirstElement(queue int) (*ListItem, error) {
+	//TODO
+	return nil, nil
+}
+
+func (storage *MySQLStorage) GetRandomElement(queue int) (*ListItem, error) {
+	//TODO
+	return nil, nil
 }
