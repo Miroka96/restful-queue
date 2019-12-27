@@ -22,6 +22,7 @@ func NewServer(storage *MySQLStorage) *Server {
 	router.HandleFunc("/queues/{id}", server.getQueue).Methods("GET")
 	router.HandleFunc("/queues/{id}", server.appendItem).Methods("POST")
 	router.HandleFunc("/items/{id}", server.deleteItem).Methods("DELETE")
+	router.HandleFunc("/queues/{id}/size", server.getQueueSize).Methods("GET")
 
 	http.Handle("/", router)
 
@@ -133,8 +134,32 @@ func (server *Server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (server *Server) getSize(w http.ResponseWriter, r *http.Request) {
-	//TODO
+func (server *Server) getQueueSize(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	size, err := server.db.GetQueueSize(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err.Error())
+		return
+	}
+	response, err := json.Marshal(size)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(response)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err.Error())
+		return
+	}
 }
 
 func (server *Server) peek(w http.ResponseWriter, r *http.Request) {

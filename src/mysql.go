@@ -175,7 +175,7 @@ func (storage *MySQLStorage) Delete(position int) error {
 	return err
 }
 
-func (storage *MySQLStorage) GetSize(queue int) (int, error) {
+func (storage *MySQLStorage) GetQueueSize(queue int) (int, error) {
 	results, err := storage.getQueueSize.Query(queue)
 	if err != nil {
 		return -1, err
@@ -194,7 +194,7 @@ func (storage *MySQLStorage) GetSize(queue int) (int, error) {
 		var next int
 		err = results.Scan(&next)
 		if err != nil {
-			log.Println(err)
+			return size, err
 		} else {
 			log.Println("Value = " + string(next))
 		}
