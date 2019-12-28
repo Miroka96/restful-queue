@@ -30,13 +30,13 @@ JOIN (
 	SELECT CEIL(RAND() * (
 		SELECT MAX(position) - MIN(position)
 		FROM Items
-	)) + (
+	) + (
 		SELECT MIN(position) 
 		FROM Items
 	)) AS id
 ) AS r2
-WHERE r1.queue=? AND r1.id >= r2.id
-ORDER BY r1.id ASC
+WHERE r1.queue=? AND r1.position >= r2.id
+ORDER BY r1.position ASC
 LIMIT 1
 `
 	getLastItem  = getQueue + " DESC LIMIT 1"
