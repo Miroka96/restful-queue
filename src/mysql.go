@@ -54,19 +54,19 @@ type MySQLStorage struct {
 	getQueueSize  *sql.Stmt
 }
 
-func NewMySQL(host string, username string, password string, database string) (*MySQLStorage, error) {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", username, password, host, database))
+func NewMySQL(config Configuration) (*MySQLStorage, error) {
+	db, err := sql.Open(
+		"mysql",
+		fmt.Sprintf("%s:%s@tcp(%s)/%s",
+			config.DatabaseUser,
+			config.DatabasePassword,
+			config.DatabaseHost,
+			config.DatabaseName))
 	if err != nil {
 		return nil, err
 	}
-	storage := MySQLStorage{db,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil}
+	storage := MySQLStorage{}
+	storage.db = db
 
 	err = storage.Initialize()
 	if err != nil {

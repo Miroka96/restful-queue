@@ -1,0 +1,74 @@
+# https://github.com/Miroka96/docker-makefile
+
+CREATOR=miroka96
+CONTAINERNAME=restful-queue
+
+TAG = 1.0
+
+# adapt these parameters
+MYSQLHOST = mysql
+DATABASE = queue
+USER = queue
+PASSWORD = secret
+
+LOCALPORT = 127.0.0.1:8090
+CONTAINERPORT = 8080
+
+# if you want a special image name, edit this
+IMAGENAME = $(CREATOR)/$(CONTAINERNAME)
+IMAGE = $(IMAGENAME):$(TAG)
+
+# if you publish no ports, delete the right part
+PORTPUBLISHING = -p $(LOCALPORT):$(CONTAINERPORT)
+
+CONTAINERLINKING = --link $(MYSQLHOST):mysql
+
+ENVIRONMENT = -e HOST=$(MYSQLHOST) -e DATABASE=$(DATABASE) -e USER=$(USER) -e PASSWORD=$(PASSWORD)
+
+.PHONY: start-database stop-database remove-database build build-nocache test test-shell build-test deploy build-deploy undeploy redeploy build-redeploy clean-volume clean-container clean
+
+MYSQL_CONTAINERNAME = mysql
+
+start-database:
+	docker run -p 127.0.0.1:3306:3306 --name $(MYSQL_CONTAINERNAME) -e MYSQL_DATABASE=$(DATABASE) -e MYSQL_USER=$(USER) -e MYSQL_PASSWORD=$(PASSWORD) -e MYSQL_RANDOM_ROOT_PASSWORD=yes -d mysql
+
+stop-database:
+	-docker stop $(MYSQL_CONTAINERNAME)
+
+remove-database: stop-database
+	-docker rm $(MYSQL_CONTAINERNAME)
+
+build:
+	docker build -t $(IMAGE) .
+
+build-nocache:
+	docker build -t $(IMAGE) --no-cache .
+
+test:
+	docker run $(PORTPUBLISHING) $(CONTAINERLINKING) $(ENVIRONMENT) -e DEBUG=true --rm $(IMAGE)
+
+test-shell:
+	docker run $(PORTPUBLISHING) $(CONTAINERLINKING) $(ENVIRONMENT) -it --rm $(IMAGE) /bin/bash
+
+build-test: build test
+
+deploy:
+	docker run --detach --restart always --name=$(CONTAINERNAME) $(PORTPUBLISHING) $(CONTAINERLINKING) $(ENVIRONMENT) -e DEBUG=false $(IMAGE)
+
+build-deploy: build deploy
+
+undeploy:
+	-docker stop $(CONTAINERNAME)
+	docker rm $(CONTAINERNAME)
+
+redeploy: undeploy deploy
+
+build-redeploy: build redeploy
+
+clean-volume:
+	-docker volume rm $(VOLUME)
+
+clean-container:
+	-docker rm $(CONTAINERNAME)
+
+clean: clean-volume clean-container
