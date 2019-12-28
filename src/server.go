@@ -23,6 +23,12 @@ func NewServer(storage *MySQLStorage) *Server {
 	router.HandleFunc("/queues/{id}", server.appendItem).Methods("POST")
 	router.HandleFunc("/items/{id}", server.deleteItem).Methods("DELETE")
 	router.HandleFunc("/queues/{id}/size", server.getQueueSize).Methods("GET")
+	router.HandleFunc("/queues/{id}/first", server.getQueueSize).Methods("GET")
+	router.HandleFunc("/queues/{id}/first", server.getQueueSize).Methods("DELETE")
+	router.HandleFunc("/queues/{id}/random", server.getQueueSize).Methods("GET")
+	router.HandleFunc("/queues/{id}/random", server.getQueueSize).Methods("DELETE")
+	router.HandleFunc("/queues/{id}/last", server.getQueueSize).Methods("GET")
+	router.HandleFunc("/queues/{id}/last", server.getQueueSize).Methods("DELETE")
 
 	http.Handle("/", router)
 
@@ -162,18 +168,55 @@ func (server *Server) getQueueSize(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getItem(w http.ResponseWriter, r *http.Request, getElement func(queue int) (*ListItem, error)) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	item, err := getElement(id)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err.Error())
+		return
+	}
+
+	response, err := json.Marshal(item)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(response)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		panic(err.Error())
+		return
+	}
+}
+
 func (server *Server) peek(w http.ResponseWriter, r *http.Request) {
-	//TODO
+	getItem(w, r, server.db.GetFirstElement)
 }
 
 func (server *Server) poll(w http.ResponseWriter, r *http.Request) {
-	//TODO
+	getItem(w, r, server.db.PollFirstElement)
 }
 
 func (server *Server) peekRandom(w http.ResponseWriter, r *http.Request) {
-	//TODO
+	getItem(w, r, server.db.GetRandomElement)
 }
 
 func (server *Server) pollRandom(w http.ResponseWriter, r *http.Request) {
-	//TODO
+	getItem(w, r, server.db.PollRandomElement)
+}
+
+func (server *Server) peekLast(w http.ResponseWriter, r *http.Request) {
+	getItem(w, r, server.db.GetLastElement)
+}
+
+func (server *Server) pollLast(w http.ResponseWriter, r *http.Request) {
+	getItem(w, r, server.db.PollLastElement)
 }
