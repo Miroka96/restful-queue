@@ -8,8 +8,13 @@ import (
 )
 
 const (
-	createQueueTable = "CREATE TABLE IF NOT EXISTS Queues (id int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT)"
-	createItemTable  = `
+	createQueueTable = `
+CREATE TABLE IF NOT EXISTS Queues (
+    id int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    name varchar(255) UNIQUE,
+    INDEX queue_name_index (name)
+                                  )`
+	createItemTable = `
 CREATE TABLE IF NOT EXISTS Items (
 	queue int unsigned NOT NULL, 
 	position int unsigned NOT NULL PRIMARY KEY AUTO_INCREMENT, 
@@ -18,12 +23,14 @@ CREATE TABLE IF NOT EXISTS Items (
 	INDEX item_index (queue, position)
 )
 `
-	createQueue   = "INSERT INTO Queues VALUES (NULL)"
-	appendItem    = "INSERT INTO Items (queue, data) VALUES (?, ?)"
-	deleteItem    = "DELETE FROM Items WHERE position=?"
-	getQueue      = "SELECT position, data FROM Items WHERE queue=? ORDER BY position"
-	getFirstItem  = getQueue + " ASC LIMIT 1"
-	getRandomItem = `
+	createQueue      = "INSERT INTO Queues VALUES (NULL, NULL)"
+	createNamedQueue = "INSERT IGNORE INTO Queues VALUES (NULL, ?)"
+	getNamedQueue    = "SELECT * FROM Queues WHERE name=?"
+	appendItem       = "INSERT INTO Items (queue, data) VALUES (?, ?)"
+	deleteItem       = "DELETE FROM Items WHERE position=?"
+	getQueue         = "SELECT position, data FROM Items WHERE queue=? ORDER BY position"
+	getFirstItem     = getQueue + " ASC LIMIT 1"
+	getRandomItem    = `
 SELECT position, data 
 FROM Items AS r1 
 JOIN (
@@ -44,14 +51,16 @@ LIMIT 1
 )
 
 type MySQLStorage struct {
-	db            *sql.DB
-	appendItem    *sql.Stmt
-	deleteItem    *sql.Stmt
-	getQueue      *sql.Stmt
-	getFirstItem  *sql.Stmt
-	getRandomItem *sql.Stmt
-	getLastItem   *sql.Stmt
-	getQueueSize  *sql.Stmt
+	db               *sql.DB
+	appendItem       *sql.Stmt
+	deleteItem       *sql.Stmt
+	getQueue         *sql.Stmt
+	getFirstItem     *sql.Stmt
+	getRandomItem    *sql.Stmt
+	getLastItem      *sql.Stmt
+	getQueueSize     *sql.Stmt
+	createNamedQueue *sql.Stmt
+	getNamedQueue    *sql.Stmt
 }
 
 func NewMySQL(config Configuration) (*MySQLStorage, error) {
@@ -115,6 +124,18 @@ func NewMySQL(config Configuration) (*MySQLStorage, error) {
 	}
 	storage.getQueueSize = getQueueSizeStatement
 
+	createNamedQueueStatement, err := db.Prepare(createNamedQueue)
+	if err != nil {
+		return nil, err
+	}
+	storage.createNamedQueue = createNamedQueueStatement
+
+	getNamedQueueStatement, err := db.Prepare(getNamedQueue)
+	if err != nil {
+		return nil, err
+	}
+	storage.getNamedQueue = getNamedQueueStatement
+
 	return &storage, nil
 }
 
@@ -154,6 +175,16 @@ func (storage *MySQLStorage) Close() error {
 		return err
 	}
 
+	err = storage.createNamedQueue.Close()
+	if err != nil {
+		return err
+	}
+
+	err = storage.getNamedQueue.Close()
+	if err != nil {
+		return err
+	}
+
 	err = storage.db.Close()
 	if err != nil {
 		return err
@@ -187,6 +218,34 @@ func (storage *MySQLStorage) CreateQueue() (*Queue, error) {
 	}
 
 	return &Queue{int(id), []ListItem{}}, nil
+}
+
+// ignores already existing queues
+func (storage *MySQLStorage) CreateNamedQueueIgnoring(name string) error {
+	_, err := storage.createNamedQueue.Exec(name)
+	return err
+}
+
+func (storage *MySQLStorage) GetCreateNamedQueue(name string) (*Queue, error) {
+	err := storage.CreateNamedQueueIgnoring(name)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := storage.getNamedQueue.Query(name)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Next()
+	var id int
+	var queueName string
+	err = results.Scan(&id, &queueName)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage.GetQueue(id)
 }
 
 func (storage *MySQLStorage) Append(queue int, data Data) (*ListItem, error) {

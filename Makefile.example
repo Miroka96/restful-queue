@@ -25,7 +25,7 @@ CONTAINERLINKING = --link $(MYSQLHOST):mysql
 
 ENVIRONMENT = -e HOST=$(MYSQLHOST) -e DATABASE=$(DATABASE) -e USER=$(USER) -e PASSWORD=$(PASSWORD)
 
-.PHONY: start-database stop-database remove-database build build-nocache test test-shell build-test deploy build-deploy undeploy redeploy build-redeploy clean-volume clean-container clean
+.PHONY: start-database stop-database remove-database restart-database build build-nocache test test-shell build-test deploy build-deploy undeploy redeploy build-redeploy clean-volume clean-container clean
 
 MYSQL_CONTAINERNAME = mysql
 
@@ -37,6 +37,8 @@ stop-database:
 
 remove-database: stop-database
 	-docker rm $(MYSQL_CONTAINERNAME)
+
+restart-database: remove-database start-database
 
 build:
 	docker build -t $(IMAGE) .
